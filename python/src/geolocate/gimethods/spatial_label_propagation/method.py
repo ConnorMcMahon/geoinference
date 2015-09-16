@@ -210,7 +210,7 @@ class SpatialLabelPropagation(GIMethod):
             lat = cols[1]
             lon = cols[2]
             user_id_to_location[user_id] = (float(lat), float(lon))
-	print 'NUM USERS: %d' % len(user_id_to_location)
+        print 'NUM USERS: %d' % len(user_id_to_location)
         return SpatialLabelPropagationModel(user_id_to_location)
 
 def get_user_location(user):
