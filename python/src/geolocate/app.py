@@ -3,6 +3,10 @@
 #
 #  All rights reserved. See LICENSE file for details
 ##
+
+#type this line (assuming tcsh) before running:
+#setenv LD_PRELOAD /usr/lib/x86_64-linux-gnu/libgfortran.so.3
+
 import argparse
 import json
 import simplejson
@@ -23,11 +27,11 @@ logger = logging.getLogger(__name__)
 
 def get_method_by_name(name):
     # get the geoinference class
-    candidates = filter(lambda x: x.__name__ == name, gimethod_subclasses())
+    candidates = gimethod_subclasses(name)
 
     if len(candidates) == 0:
         logger.fatal('No geoinference named "%s" was found.' % name)
-        logger.info('Available methods are: %s' % ','.join([x.__name__ for x in gimethod_subclasses()]))
+        logger.info('Available methods are: %s' % ','.join([x.__name__ for x in gimethod_subclasses("")]))
         quit()
 
     if len(candidates) > 1:

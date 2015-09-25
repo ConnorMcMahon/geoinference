@@ -87,7 +87,6 @@ class SparseDataset(object):
 
         for line in fh:
             user = self.load_user(line)
-
             yield user
 
     def __iter__(self):
@@ -96,26 +95,25 @@ class SparseDataset(object):
         """
         return self.post_iter()
 
-        def user_home_location_iter(self):
-            """
-            Returns an iterator over all the users whose home location has
-            been already identified.  
-            """
-            location_file = self._users_with_locations_fname
-            logger.debug('Loading home locations from %s' 
-                         % (self._users_with_locations_fname))
-            fh = gzip.open(location_file)
-            logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
-            for line in fh:
-                user_id, lat, lon = line.split('\t')
-                # print "%s %s" % (user_id, next(iter(self.excluded_users)))
-                if not user_id in self.excluded_users:
-                    yield (user_id, (float(lat), float(lon)))
-                #else:
-                #        print "excluding %s" % user_id
-            fh.close()
-                        
-                        
+    def user_home_location_iter(self):
+        """
+        Returns an iterator over all the users whose home location has
+        been already identified.  
+        """
+        location_file = self._users_with_locations_fname
+        logger.debug('Loading home locations from %s' 
+                     % (self._users_with_locations_fname))
+        fh = gzip.open(location_file)
+        logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
+        for line in fh:
+            user_id, lat, lon = line.split('\t')
+            # print "%s %s" % (user_id, next(iter(self.excluded_users)))
+            if not user_id in self.excluded_users:
+                yield (user_id, (float(lat), float(lon)))
+            #else:
+            #        print "excluding %s" % user_id
+        fh.close()
+        
     def known_user_locations(self):
         """
         Return dictionary of users to their locations, containing only
@@ -128,7 +126,6 @@ class SparseDataset(object):
             yield user
                 
         fh.close()
-
 
     def mention_network(self):
         """
@@ -145,6 +142,7 @@ class SparseDataset(object):
 
     def build_graph(self,fname,directed,weighted):
         command = ("wc -l %s" %fname)
+        print(fname);
         process = subprocess.Popen(command, stdout=subprocess.PIPE,stderr=None, shell=True)
         output = process.communicate()
         graph_edge_capacity = int(output[0].split()[0]) + 1

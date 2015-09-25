@@ -193,11 +193,28 @@ def posts2mention_network(posts_fname,extract_user_id,
             print("Invalid JSON")
             continue
 
+    BiMentionG = zen.Graph()
+
+    potentialBiMentions = {}
+    exploredNodes = set()
+
+    for node in G.nodes_iter():
+        potentialEdges = potentialBiMentions.get(node, set())
+        for neighbor in G.neighbors(node):
+            if neighbor in potentialEdges:
+                BiMentionG.add_edge(node, neighbor)
+            elif neighbor not in exploredNodes:
+                neighborPotentialEdges = potentialBiMentions.get(neighbor, set())
+                neighborPotentialEdges.add(node)
+                potentialBiMentions[neighbor] = neighborPotentialEdges
+
+
+
     # save the graph
     logging.info('writing network')
     # TODO: Add compression to this...
     zen.io.edgelist.write(G,os.path.join(working_dir,'mention_network.elist'),use_weights=True)
-
+    zen.io.edgelist.write(BiMentionG, os.path.join(working_dir, 'bi_mention_network.elist'))
     # done
     return
 

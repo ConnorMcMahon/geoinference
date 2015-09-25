@@ -17,19 +17,21 @@ logger = logging.getLogger(os.path.basename(__file__))
 
 __subclass_import_completed = False
 
-def __import_gimethod_subclasses():
+def __import_gimethod_subclasses(name):
 	import gimethods
 
 	dirpath = os.path.dirname(gimethods.__file__)
 	modules = []
 
 	logger.debug('searching for modules in %s' % dirpath)
-	for d in filter(lambda x: os.path.isdir(os.path.join(dirpath,x)),os.listdir(dirpath)):
+	for d in filter(lambda x: (os.path.isdir(os.path.join(dirpath,x))),os.listdir(dirpath)):
+		if not(name==d or name==""):
+			continue
 		path = os.path.join(dirpath,d)
 		files = os.listdir(path)
 		files = filter(lambda x: x == 'method.py', files)
 		mods = map(lambda x: x.replace('.py',''), files)
-		modules += ['geolocate.gimethods.%s.%s' % (d,m) for m in mods]
+		modules += ['gimethods.%s.%s' % (d,m) for m in mods]
 
 	# load all the modules
 	logger.debug('loading all modules found')
@@ -38,12 +40,12 @@ def __import_gimethod_subclasses():
 
 	# done
 
-def gimethod_subclasses():
+def gimethod_subclasses(name):
 	global __subclass_import_completed
 
 	if not __subclass_import_completed:
 		logger.debug('building classes')
-		__import_gimethod_subclasses()
+		__import_gimethod_subclasses(name)
 		__subclass_import_completed = True
 
 	return GIMethod.__subclasses__() 

@@ -21,7 +21,7 @@ from Queue import Full as QueueFull
 from Queue import Empty as QueueEmpty
 
 
-from geolocate import GIMethod, GIModel
+from gimethod import GIMethod, GIModel
 import multiprocessing
 
 
@@ -95,6 +95,8 @@ class SpatialLabelPropagation(GIMethod):
 
         # This dict will contain a mapping from each user ID associated with at
         # least 5 posts within a 15km radius to the user's home location
+        print([method for method in dir(dataset) if callable(getattr(dataset, method))])
+
         logger.debug('Loading known user locations')
         user_to_home_loc = {user: loc for (user, loc) in dataset.user_home_location_iter()}
 
