@@ -95,8 +95,6 @@ class SpatialLabelPropagation(GIMethod):
 
         # This dict will contain a mapping from each user ID associated with at
         # least 5 posts within a 15km radius to the user's home location
-        print([method for method in dir(dataset) if callable(getattr(dataset, method))])
-
         logger.debug('Loading known user locations')
         user_to_home_loc = {user: loc for (user, loc) in dataset.user_home_location_iter()}
 
@@ -158,7 +156,7 @@ class SpatialLabelPropagation(GIMethod):
         fh = open(os.path.join(model_dir, 'user-id-to-location.tsv'), 'w')
 
         for user_id, loc in user_to_estimated_location.iteritems():
-            fh.write("%s\t%s\t%s\n" % (user_id, loc.latitude, loc.longitude))
+            fh.write("%s\t%s\t%s\n" % (user_id, loc[0], loc[1]))
         fh.close()
         return SpatialLabelPropagationModel(user_to_estimated_location)            
 
