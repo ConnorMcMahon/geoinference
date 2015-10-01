@@ -320,7 +320,6 @@ def main():
         csvwriter = csv.writer(fout, delimiter='\t')
         for uid, location in uidToLocations.iteritems():
             if location:
-                print location
                 pt = gc.geocode_noisy(location)
             else:
                 pt = None

@@ -34,6 +34,7 @@ All three core files in the dataset directory contain data in JSON format.
 
 import simplejson
 #import jsonlib
+import json
 import os, os.path
 import logging
 import zen
@@ -47,7 +48,7 @@ class SparseDataset(object):
     This class encapsulates access to datasets.
     """
 
-    def __init__(self, dataset_dir, users_file='users.tsv.gz', excluded_users=set(), default_location_source='geo-median'):
+    def __init__(self, dataset_dir, users_file='users.json.gz', excluded_users=set(), default_location_source='geo-median'):
         
         settings_fname = os.path.join(dataset_dir,'dataset.json')
         if os.path.exists(settings_fname):
@@ -105,13 +106,21 @@ class SparseDataset(object):
                      % (self._users_with_locations_fname))
         fh = gzip.open(location_file)
         logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
+        #eliminate header row
+        next(fh)
+
         for line in fh:
-            user_id, lat, lon = line.split('\t')
-            # print "%s %s" % (user_id, next(iter(self.excluded_users)))
-            if not user_id in self.excluded_users:
-                yield (user_id, (float(lat), float(lon)))
-            #else:
-            #        print "excluding %s" % user_id
+            try:
+                user_id, lat, lon = line.split('\t')
+                # print "%s %s" % (user_id, next(iter(self.excluded_users)))
+                if not user_id in self.excluded_users:
+                    yield (user_id, (float(lat), float(lon)))
+                #else:
+                #        print "excluding %s" % user_id
+            except:
+                print(lat)
+                print(lon)
+                continue
         fh.close()
         
     def known_user_locations(self):
@@ -189,95 +198,20 @@ class SparseDataset(object):
         a dict format that mirrors the full JSON data, except with all
         unused fields omitted (e.g., posting date).
         """
-        cols = line.split("\t")
-        user_id_str = cols[0]
-        user_id = user_id_str
-        posts = []
-        user_obj = {} 
-        user_obj['user_id']  = user_id
-        user_obj['posts'] = posts
-        COLS_PER_POST = 8
+        line_json = json.loads(line)
+        user_obj = {}
+        user_obj['user_id']  = line_json['user_id']
+        user_obj['posts'] = line_json['posts']
 
-        should_exclude_location_data = user_id in self.excluded_users
+        should_exclude_location_data = user_obj['user_id'] in self.excluded_users
         
         #print "User %d had line with %d columns (%f posts)" % (user_id, len(cols), len(cols) / 8.0)
         
-        for post_offset in range(1, len(cols), COLS_PER_POST):
-            try:
-                # Grab the relevant content for this post
-                text = cols[post_offset]
-                tweet_id = cols[post_offset+1]
-                self_reported_loc = cols[post_offset+2]
-                geo_str = cols[post_offset+3]
-                mentions_str = cols[post_offset+4]
-                hashtags_str = cols[post_offset+5]
-                is_retweet_str = cols[post_offset+6]
-                place_json = cols[post_offset+7]                                                
-                
-                # Reconstruct the post as a series of nested dicts that
-                # mirrors the real-world full JSON object in structure
-                post = {}
-                post["id_str"] = tweet_id
-                post["id"] = long(tweet_id)
-                post["text"] = text
+        for post in user_obj['posts']:
+            # Only include geo information for posts that are not in
+            # the set of exlcuded posts, which are likely being used
+            # for testing data
+            if should_exclude_location_data:
+                post.pop("geo", None)
 
-                if is_retweet_str == 'True':
-                    # We don't have any data to put, so just fill it
-                    # with an empty object
-                    post["retweeted_status"] = {}
-
-                entities = {}
-                post["entities"] = entities
-
-                user_mentions = []
-                entities["user_mentions"] = user_mentions
-                if len(mentions_str) > 0:
-                    mentions = mentions_str.split(" ")
-                    for mention in mentions:
-                        mention_obj = {}
-                        mention_obj["id"] = long(mention)
-                        mention_obj["id_str"] = mention
-                        user_mentions.append(mention_obj)
-
-                hashtags = []
-                entities["hashtags"] = hashtags
-                if len(hashtags_str) > 0:
-                    tags = hashtags_str.split(" ")
-                    for tag in tags:
-                        tag_obj = {}
-                        tag_obj["text"] = tag
-                        hashtags.append(tag_obj)
-                
-        
-                # Only include geo information for posts that are not in
-                # the set of exlcuded posts, which are likely being used
-                # for testing data
-                if len(geo_str) > 0 and not should_exclude_location_data:
-                    geo = {}
-                    post["geo"] = geo
-                    coordinates = []
-                    coords = geo_str.split(" ")
-                    coordinates.append(float(coords[0]))
-                    coordinates.append(float(coords[1]))
-                    geo["coordinates"] = coordinates
-
-                # Place is a special case because the field formatting
-                # is so complex, it's just saved as a raw JSON string.
-                # This requires reparsing place to stuff in our object.
-                # However, since place is relative rare (1% of tweets),
-                # this isn't very expensive
-                if len(place_json) > 1 and not should_exclude_location_data:
-                    place = jsonlib.loads(place_json)
-                    post["place"] = place
-                user = {}
-                post["user"] = user
-                user["id_str"] = user_id_str
-                user["id"] = user_id
-                user["location"] = self_reported_loc
-
-                posts.append(post)
-            except:
-                logger.info("Saw malformed post when reading user; skipping")
-                pass
-            
         return user_obj

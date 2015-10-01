@@ -90,15 +90,15 @@ class SpatialLabelPropagation(GIMethod):
         logger.debug('Loading mention network')
         mention_network = dataset.bi_mention_network()
         all_users = set(mention_network.nodes())
-        logger.debug('Loaded network with %d users and %d edges' 
+        print('Loaded network with %d users and %d edges' 
                      % (mention_network.__len__(), mention_network.size()))
 
         # This dict will contain a mapping from each user ID associated with at
         # least 5 posts within a 15km radius to the user's home location
-        logger.debug('Loading known user locations')
+        print('Loading known user locations')
         user_to_home_loc = {user: loc for (user, loc) in dataset.user_home_location_iter()}
 
-        logger.debug('Loaded gold-standard locations of %s users (%s)' 
+        print('Loaded gold-standard locations of %s users (%s)' 
                      % (len(user_to_home_loc), 
                         float(len(user_to_home_loc)) / len(all_users)))
 
@@ -119,11 +119,25 @@ class SpatialLabelPropagation(GIMethod):
         num_iterations = 5        
 
         num_users = len(all_users)
+        
+        i = 0
+        for user_id in all_users:
+            print(user_id)
+            i+=1
+            if i >= 10:
+                break
 
+        i = 0
+        for user_id in user_to_home_loc:
+            print(user_id)
+            i+=1
+            if i>= 10:
+                break
         for iteration in range(0, num_iterations):
             logger.debug('Beginning iteration %s' % iteration)
             num_located_at_start = len(user_to_estimated_location)
             num_processed = 0
+            print(len(user_to_home_loc))
             for user_id in all_users:
                 self.update_user_location(user_id, mention_network, 
                                           user_to_home_loc,
@@ -131,10 +145,10 @@ class SpatialLabelPropagation(GIMethod):
                                           user_to_next_estimated_location)
                 num_processed += 1
                 if num_processed % 100000 == 0:
-                    logger.debug('In iteration %d, processed %d users out of %d, located %d'
+                    print('In iteration %d, processed %d users out of %d, located %d'
                                  % (iteration, num_processed, num_users, len(user_to_next_estimated_location)))
             num_located_at_end = len(user_to_next_estimated_location)
-            logger.debug('At end of iteration %s, located %s users (%s new)' %
+            print('At end of iteration %s, located %s users (%s new)' %
                          (iteration, num_located_at_end,
                           num_located_at_end - num_located_at_start))
 
@@ -174,6 +188,7 @@ class SpatialLabelPropagation(GIMethod):
         # Short-circuit if we already know where this user is located
         # so that we always preserve the "hint" going forward
         if user_id in user_to_home_loc:
+            print(user_id)
             user_to_next_estimated_location[user_id] = user_to_home_loc[user_id]
             return
 

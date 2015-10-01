@@ -183,7 +183,7 @@ def posts2mention_network(posts_fname,extract_user_id,
             post = json.loads(line)
             uid = extract_user_id(post)
             mentions = extract_mentions(post)
-
+            print(mentions)
             for m in mentions:
                 if G.has_edge(uid,m):
                     G.set_weight(uid,m,G.weight(uid,m)+1)

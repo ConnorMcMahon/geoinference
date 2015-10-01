@@ -96,7 +96,7 @@ def create_folds(args):
         output_posts_file_handles.append(gold_loc_fh)
         cf_info_fh.write("%s\t%s.post-ids.txt\t%s.user-ids.txt\t%s.users.json.gz\n" 
                                  % (fold_name, fold_name, fold_name, fold_name))
-        cf_info_fh.close()
+    cf_info_fh.close()
 
     # Load the dataset
     ds = SparseDataset(args.dataset_dir)
@@ -142,14 +142,14 @@ def create_folds(args):
                                      % (num_users, num_gold_users, num_gold_posts, num_posts,
                                         float(num_gold_posts) / num_posts))
 
-        for fh in output_posts_file_handles:
-            fh.close()
-        for fh in output_held_out_post_ids_file_handles:
-            fh.close()
-        for fh in output_held_out_user_ids_file_handles:
-            fh.close()
-        for fh in output_gold_loc_file_handles:
-            fh.close()  
+    for fh in output_posts_file_handles:
+        fh.close()
+    for fh in output_held_out_post_ids_file_handles:
+        fh.close()
+    for fh in output_held_out_user_ids_file_handles:
+        fh.close()
+    for fh in output_gold_loc_file_handles:
+        fh.close()  
 
     logger.debug('Saw %d gold standard users in %d total' % (num_gold_users, num_users))
 
@@ -440,6 +440,12 @@ def infer(args,by_user=False):
 
     # done
 
+def get_uid_field(post):
+    return post['user']['id_str']
+
+def get_mention_users(post):
+    return [mention['id_str'] for mention in post['entities']['user_mentions']]
+
 def build_dataset(args):
     parser = argparse.ArgumentParser(prog='geoinf build_dataset',description='build a new dataset')
     parser.add_argument('-f','--force',action='store_true')
@@ -454,8 +460,8 @@ def build_dataset(args):
     uid_field_name = args.user_id_field.split('.')[::-1]
     mention_field_name = args.mention_field.split('.')[::-1]
     posts2dataset(args.dataset_dir,args.posts_file,
-                  lambda x: (lambda a: lambda dic, ind: a(a, dic, ind))(lambda s, dic, ind: str(dic) if ind == -1  else s(s,dic[uid_field_name[ind]], ind-1))(x, len(uid_field_name)-1),
-                  lambda x: (lambda a: lambda dic, ind: a(a, dic, ind))(lambda s, dic, ind: str(dic) if ind == -1 else (s(s,dic.get(mention_field_name[ind],[]), ind-1) if type(dic) == dict else map(lambda d: s(s,d,ind), dic)))(x, len(mention_field_name)-1),
+                  get_uid_field,
+                  get_mention_users,
                   force=args.force)
     
     # done
