@@ -124,7 +124,6 @@ class SpatialLabelPropagation(GIMethod):
             logger.debug('Beginning iteration %s' % iteration)
             num_located_at_start = len(user_to_estimated_location)
             num_processed = 0
-            print(len(user_to_home_loc))
             for user_id in all_users:
                 self.update_user_location(user_id, mention_network, 
                                           user_to_home_loc,
@@ -175,7 +174,6 @@ class SpatialLabelPropagation(GIMethod):
         # Short-circuit if we already know where this user is located
         # so that we always preserve the "hint" going forward
         if user_id in user_to_home_loc:
-            print(user_id)
             user_to_next_estimated_location[user_id] = user_to_home_loc[user_id]
             return
 
