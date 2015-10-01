@@ -120,19 +120,6 @@ class SpatialLabelPropagation(GIMethod):
 
         num_users = len(all_users)
         
-        i = 0
-        for user_id in all_users:
-            print(user_id)
-            i+=1
-            if i >= 10:
-                break
-
-        i = 0
-        for user_id in user_to_home_loc:
-            print(user_id)
-            i+=1
-            if i>= 10:
-                break
         for iteration in range(0, num_iterations):
             logger.debug('Beginning iteration %s' % iteration)
             num_located_at_start = len(user_to_estimated_location)
