@@ -116,8 +116,9 @@ class SpatialLabelPropagation(GIMethod):
         user_to_next_estimated_location = {}
 
         # TODO: make this configurable from the settings varaible
-        num_iterations = 5        
-
+        num_iterations = 5
+        #not sure if below line should be included
+        all_users = all_users | set(user_to_home_loc.keys())
         num_users = len(all_users)
         
         for iteration in range(0, num_iterations):
