@@ -147,6 +147,8 @@ class SpatialLabelPropagation(GIMethod):
         logger.info("Saving model (%s locations) to %s" 
                     % (len(user_to_estimated_location), model_dir))
 
+        return user_to_home_loc, user_to_estimated_location
+
         # Short circuit early if the caller has specified that the model is not
         # to be saved into a directory
         if model_dir is None:
@@ -160,6 +162,7 @@ class SpatialLabelPropagation(GIMethod):
         for user_id, loc in user_to_estimated_location.iteritems():
             fh.write("%s\t%s\t%s\n" % (user_id, loc[0], loc[1]))
         fh.close()
+
         return SpatialLabelPropagationModel(user_to_estimated_location)            
 
 

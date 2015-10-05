@@ -186,6 +186,14 @@ def cross_validate(args):
     # load the method
     method = get_method_by_name(args.method_name)
 
+    gold_location = {}
+    with gzip.open("sample_dataset/users.home-locations.geo-median.tsv.gz", 'r') as fh:
+        fh.next()
+        for line in fh:
+            user_id, lat, lon = line.split('\t')
+            gold_location[user_id] = (float(lat), float(lon))
+
+
     # load the data
     with open(args.method_settings, 'r') as fh:
         settings = json.load(fh)
@@ -252,18 +260,35 @@ def cross_validate(args):
             os.mkdir(model_dir)
                 
         # Train on the datset, holding out the testing post IDs
-        model = method_inst.train_model(settings, training_data, None)
+        started, finished = method_inst.train_model(settings, training_data, None)
 
-        print('Finished training during fold %s; beginning testing' % fold_name)
+        
 
-        print("Reading testing data from %s" % (os.path.join(args.fold_dir,testing_users_file)))
+        #print('Finished training during fold %s; beginning testing' % fold_name)
 
-        testing_data = Dataset(args.fold_dir, users_file=os.path.join(args.fold_dir,testing_users_file))
+        #print("Reading testing data from %s" % (os.path.join(args.fold_dir,testing_users_file)))
+
+        #testing_data = Dataset(args.fold_dir, users_file=os.path.join(args.fold_dir,testing_users_file))
 
         print("Writing results to %s" % (os.path.join(args.results_dir, fold_name + ".results.tsv.gz")))
                 
         out_fh = gzip.open(os.path.join(args.results_dir, fold_name + ".results.tsv.gz"), 'w')
 
+        initial_users = set(started.keys())
+        final_users = set(finished.keys())
+        gold_standard_users = set(gold_location.keys())
+        predicted_users = final_users - initial_users
+        test_users = predicted_users & gold_standard_users
+        print("Found %d new users after starting with %d users" % (len(predicted_users), len(initial_users)))
+        print("Reporting results of %d users with known locations and predicted locations" % (len(test_users)))
+
+        for user in test_users:
+            #print('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1].strip(), finished[user][1], finished[user][0]))
+            out_fh.write('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1], finished[user][1], finished[user][0]))
+
+        out_fh.close()
+        
+        """
         num_tested_users = 0
         num_tested_posts = 0
         seen_ids = set()
@@ -291,6 +316,7 @@ def cross_validate(args):
                         print('During testing of fold %s, processed %d users, %d posts, %d located' % (fold_name, num_tested_users, num_tested_posts, num_located_posts))
 
         out_fh.close()
+        """
         print('Finished testing of fold %s' % fold_name)
 
 
