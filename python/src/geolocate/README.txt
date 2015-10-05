@@ -26,7 +26,9 @@ Processes the nodes to the form uid, lat, lon in a .tsv file for the next step
 
 gzips file for previous step for training step
 
-8. python app.py create_folds sample_dataset 10 cross_folds
+8. python app.py create_folds sample_dataset 10 cross_folds [TEST_TYPE]
+
+TEST_TYPE = county for urban vs rural, or gender for male/female/unknown
            
 9. python app.py cross_validate spatial_label_propagation settings.json sample_dataset cross_folds output
 

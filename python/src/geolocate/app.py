@@ -53,6 +53,7 @@ def create_folds(args):
     parser.add_argument('dataset_dir', help='a directory containing a geoinference dataset')
     parser.add_argument('num_folds', help='the number of folds into which the dataset should be divided')
     parser.add_argument('fold_dir', help='a (non-existent) directory that will contain the information on the cross-validation folds')
+    parser.add_argument('test_case', help="What type of test wanted to run i.e. rural vs urban (county), gender (gender), or random (any other string)")
 
     args = parser.parse_args(args)
 
@@ -66,7 +67,9 @@ def create_folds(args):
     if num_folds <= 1:
         #raise Exception, 'The number of folds must be at least two'
         print("the number of folds must be at least two")
-    
+
+
+
 
     # Initialize the output streams.  Rather than keeping things in memory,
     # we batch the gold standard posts by users (one at a time) and then
@@ -101,45 +104,50 @@ def create_folds(args):
     # Load the dataset
     ds = SparseDataset(args.dataset_dir)
 
-    logger.debug('Extracting gold-standard posts')
-    num_users = 0
-    num_posts = 0
-    num_gold_users = 0
-    num_gold_posts = 0
+    if args.test_case == "gender":
+        pass
+    elif args.test_case == "county":
+        pass
+    else:
+        logger.debug('Extracting gold-standard posts')
+        num_users = 0
+        num_posts = 0
+        num_gold_users = 0
+        num_gold_posts = 0
 
-    # Iterate over the dataset looking for posts with geo IDs that we can
-    # use as a gold standard
-    for user in ds.user_iter():
-        gold_posts = []
-        gold_post_id_to_loc = {}
-        user_id = user['user_id']
-        num_posts += len(user['posts'])
-        for post in user['posts']:
-            if "geo" in post:
-                    post_id = post['id']
-                    loc = post['geo']['coordinates']
-                    gold_post_id_to_loc[post_id] = loc
-                    gold_posts.append(post)
-        # If this user had any gold locations, add them as folds
-        if len(gold_posts) > 0:
-            num_gold_posts += len(gold_posts)
-            fold_to_use = num_gold_users % num_folds
-            num_gold_users += 1
-            
-            output_held_out_user_ids_file_handles[fold_to_use].write("%s\n" % user['user_id'])
-
-            for post_id, loc in gold_post_id_to_loc.iteritems():
-                output_held_out_post_ids_file_handles[fold_to_use].write("%d\n" % post_id)
-                output_gold_loc_file_handles[fold_to_use].write("%d\t%s\t%f\t%f\n" % (post_id, user_id, loc[0], loc[1]))
-            # Lazily mutate the existing user object and the dump
-            # that object to the fold's user.json.gz 
-            user['posts'] = gold_posts
-            output_posts_file_handles[fold_to_use].write("%s\n" % simplejson.dumps(user))
+        # Iterate over the dataset looking for posts with geo IDs that we can
+        # use as a gold standard
+        for user in ds.user_iter():
+            gold_posts = []
+            gold_post_id_to_loc = {}
+            user_id = user['user_id']
+            num_posts += len(user['posts'])
+            for post in user['posts']:
+                if "geo" in post:
+                        post_id = post['id']
+                        loc = post['geo']['coordinates']
+                        gold_post_id_to_loc[post_id] = loc
+                        gold_posts.append(post)
+            # If this user had any gold locations, add them as folds
+            if len(gold_posts) > 0:
+                num_gold_posts += len(gold_posts)
+                fold_to_use = num_gold_users % num_folds
+                num_gold_users += 1
                 
-        num_users += 1
-        if num_users % 100000 == 0:
-            logger.debug('Processed %d users, saw %d gold so far (%d posts of %d (%f))' 
-                                     % (num_users, num_gold_users, num_gold_posts, num_posts,
+                output_held_out_user_ids_file_handles[fold_to_use].write("%s\n" % user['user_id'])
+
+                for post_id, loc in gold_post_id_to_loc.iteritems():
+                    output_held_out_post_ids_file_handles[fold_to_use].write("%d\n" % post_id)
+                    output_gold_loc_file_handles[fold_to_use].write("%d\t%s\t%f\t%f\n" % (post_id, user_id, loc[0], loc[1]))
+                # Lazily mutate the existing user object and the dump
+                # that object to the fold's user.json.gz 
+                user['posts'] = gold_posts
+                output_posts_file_handles[fold_to_use].write("%s\n" % simplejson.dumps(user))
+                    
+            num_users += 1
+            if num_users % 100000 == 0:
+                logger.debug('Processed %d users, saw %d gold so far (%d posts of %d (%f))' 
+                                         % (num_users, num_gold_users, num_gold_posts, num_posts,
                                         float(num_gold_posts) / num_posts))
 
     for fh in output_posts_file_handles:
