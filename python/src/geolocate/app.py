@@ -94,8 +94,8 @@ def create_folds(args):
          # The users.json.gz file with the gold data (used for testing)
         gold_loc_fh = gzip.open(os.path.join(args.fold_dir, fold_name + ".users.json.gz"), 'w')
         output_posts_file_handles.append(gold_loc_fh)
-        cf_info_fh.write("%s\t%s.post-ids.txt\t%s.user-ids.txt\t%s.users.json.gz\n" 
-                                 % (fold_name, fold_name, fold_name, fold_name))
+        cf_info_fh.write("%s\t%s.post-ids.txt\t%s.user-ids.txt\t%s.users.json.gz\t%s.gold-locations.tsv\n" 
+                                 % (fold_name, fold_name, fold_name, fold_name, fold_name))
     cf_info_fh.close()
 
     # Load the dataset
@@ -195,7 +195,7 @@ def cross_validate(args):
             specific_fold_to_run = specific_fold_to_run[0]
         location_source = args.location_source
         if location_source:
-            logger.debug('Using %s as the source of ground truth location' % location_source)
+            print('Using %s as the source of ground truth location' % location_source)
             location_source = location_source[0]
             settings['location_source'] = location_source
 
@@ -210,7 +210,7 @@ def cross_validate(args):
     # the fold_dir containing the testing data for that fold
     for line in cfv_fh:
         line = line.strip()
-        fold_name, testing_post_ids_file, testing_user_ids_file, testing_users_file = line.split("\t")
+        fold_name, testing_post_ids_file, testing_user_ids_file, testing_users_file, location_source = line.split("\t")
 
         # Skip this fold if the user has told us to run only one fold by name
         if specific_fold_to_run is not None and fold_name != specific_fold_to_run:
@@ -237,9 +237,9 @@ def cross_validate(args):
         # load the dataset
         training_data = None
         if not location_source is None:
-            training_data = SparseDataset(args.dataset_dir, excluded_users=testing_user_ids, default_location_source=location_source)
+            training_data = SparseDataset(args.dataset_dir, args.fold_dir, default_location_source=location_source)
         else:
-            training_data = SparseDataset(args.dataset_dir, excluded_users=testing_user_ids)
+            training_data = SparseDataset(args.dataset_dir, args.fold_dir)
                 
         # load the method
         method = get_method_by_name(args.method_name)
@@ -254,13 +254,13 @@ def cross_validate(args):
         # Train on the datset, holding out the testing post IDs
         model = method_inst.train_model(settings, training_data, None)
 
-        logger.debug('Finished training during fold %s; beginning testing' % fold_name)
+        print('Finished training during fold %s; beginning testing' % fold_name)
 
-        logger.debug("Reading testing data from %s" % (os.path.join(args.fold_dir,testing_users_file)))
+        print("Reading testing data from %s" % (os.path.join(args.fold_dir,testing_users_file)))
 
         testing_data = Dataset(args.fold_dir, users_file=os.path.join(args.fold_dir,testing_users_file))
 
-        logger.debug("Writing results to %s" % (os.path.join(args.results_dir, fold_name + ".results.tsv.gz")))
+        print("Writing results to %s" % (os.path.join(args.results_dir, fold_name + ".results.tsv.gz")))
                 
         out_fh = gzip.open(os.path.join(args.results_dir, fold_name + ".results.tsv.gz"), 'w')
 
@@ -288,10 +288,10 @@ def cross_validate(args):
                     num_located_posts += 1
                     num_tested_users += 1
                     if num_tested_users % 10000 == 0:
-                        logger.debug('During testing of fold %s, processed %d users, %d posts, %d located' % (fold_name, num_tested_users, num_tested_posts, num_located_posts))
+                        print('During testing of fold %s, processed %d users, %d posts, %d located' % (fold_name, num_tested_users, num_tested_posts, num_located_posts))
 
         out_fh.close()
-        logger.debug('Finished testing of fold %s' % fold_name)
+        print('Finished testing of fold %s' % fold_name)
 
 
 

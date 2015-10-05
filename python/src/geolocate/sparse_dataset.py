@@ -48,8 +48,7 @@ class SparseDataset(object):
     This class encapsulates access to datasets.
     """
 
-    def __init__(self, dataset_dir, users_file='users.json.gz', excluded_users=set(), default_location_source='geo-median'):
-        
+    def __init__(self, dataset_dir, cross_fold_dir, users_file='users.json.gz', excluded_users=set(), default_location_source='geo-median'):
         settings_fname = os.path.join(dataset_dir,'dataset.json')
         if os.path.exists(settings_fname):
             self._settings = jsonlib.load(open(settings_fname,'r'))
@@ -59,7 +58,7 @@ class SparseDataset(object):
         # prepare for all data
         self._dataset_dir = dataset_dir
         self._users_fname = os.path.join(dataset_dir, users_file)
-        self._users_with_locations_fname = os.path.join(dataset_dir, 'users.home-locations.' + default_location_source + '.tsv.gz')
+        self._users_with_locations_fname = os.path.join(cross_fold_dir, default_location_source)
         self._mention_network_fname = os.path.join(dataset_dir, 'mention_network.elist')
         self._bi_mention_network_fname = os.path.join(dataset_dir, 'bi_mention_network.elist')
         self.excluded_users = excluded_users
@@ -104,24 +103,21 @@ class SparseDataset(object):
         location_file = self._users_with_locations_fname
         logger.debug('Loading home locations from %s' 
                      % (self._users_with_locations_fname))
-        fh = gzip.open(location_file)
-        logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
-        #eliminate header row
-        next(fh)
+        with open(location_file, 'r') as fh:
+            logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
+            #eliminate header row
+            next(fh)
 
-        for line in fh:
-            try:
-                user_id, lat, lon = line.split('\t')
-                # print "%s %s" % (user_id, next(iter(self.excluded_users)))
-                if not user_id in self.excluded_users:
-                    yield (user_id, (float(lat), float(lon)))
-                #else:
-                #        print "excluding %s" % user_id
-            except:
-                print(lat)
-                print(lon)
-                continue
-        fh.close()
+            for line in fh:
+                try:
+                    post_id, user_id, lat, lon = line.split('\t')
+                    # print "%s %s" % (user_id, next(iter(self.excluded_users)))
+                    if not user_id in self.excluded_users:
+                        yield (user_id, (float(lat), float(lon)))
+                    #else:
+                    #        print "excluding %s" % user_id
+                except:
+                    continue
         
     def known_user_locations(self):
         """

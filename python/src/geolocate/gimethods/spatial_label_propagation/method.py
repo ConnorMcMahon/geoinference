@@ -119,6 +119,7 @@ class SpatialLabelPropagation(GIMethod):
         num_iterations = 5
         #not sure if below line should be included
         all_users = all_users | set(user_to_home_loc.keys())
+        
         num_users = len(all_users)
         
         for iteration in range(0, num_iterations):
@@ -135,7 +136,7 @@ class SpatialLabelPropagation(GIMethod):
                     print('In iteration %d, processed %d users out of %d, located %d'
                                  % (iteration, num_processed, num_users, len(user_to_next_estimated_location)))
             num_located_at_end = len(user_to_next_estimated_location)
-            print('At end of iteration %s, located %s users (%s new)' %
+            print('At end of iteraition %s, located %s users (%s new)' %
                          (iteration, num_located_at_end,
                           num_located_at_end - num_located_at_start))
 
