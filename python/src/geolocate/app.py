@@ -290,9 +290,10 @@ def cross_validate(args):
         print("Found %d new users after starting with %d users" % (len(predicted_users), len(initial_users)))
         print("Reporting results of %d users with known locations and predicted locations" % (len(test_users)))
 
+        out_fh.write("%s\t%s\t%s\t%s\t%s\n" % ("user_id", "known_lat", "known_lon", "pred_lat", "pred_lon"))
         for user in test_users:
             #print('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1].strip(), finished[user][1], finished[user][0]))
-            out_fh.write('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1], finished[user][1], finished[user][0]))
+            out_fh.write('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][1], gold_location[user][0], finished[user][0], finished[user][1]))
 
         out_fh.close()
         
