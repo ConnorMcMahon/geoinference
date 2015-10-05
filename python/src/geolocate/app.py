@@ -22,6 +22,8 @@ from collections import defaultdict
 from gimethod import gimethod_subclasses, GIMethod
 from dataset import Dataset, posts2dataset
 from sparse_dataset import SparseDataset
+from geopy.distance import vincenty
+from geopy.distance import great_circle
 
 logger = logging.getLogger(__name__)
 
@@ -290,10 +292,16 @@ def cross_validate(args):
         print("Found %d new users after starting with %d users" % (len(predicted_users), len(initial_users)))
         print("Reporting results of %d users with known locations and predicted locations" % (len(test_users)))
 
-        out_fh.write("%s\t%s\t%s\t%s\t%s\n" % ("user_id", "known_lat", "known_lon", "pred_lat", "pred_lon"))
+        out_fh.write("%s\t%s\t%s\t%s\t%s\t%s\n" % ("user_id", "known_lat", "known_lon", "pred_lat", "pred_lon", "distance (km)"))
         for user in test_users:
             #print('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1].strip(), finished[user][1], finished[user][0]))
-            out_fh.write('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][1], gold_location[user][0], finished[user][0], finished[user][1]))
+            prevMedian = (gold_location[user][1], gold_location[user][0])
+            testMedian = finished[user]
+            try:
+                distance = vincenty(prevMedian, testMedian).kilometers
+            except:
+                distance = great_circle(prevMedian, testMedian).kilometers
+            out_fh.write('%s\t%s\t%s\t%s\t%s\t%d\n' % (user, gold_location[user][1], gold_location[user][0], finished[user][0], finished[user][1], distance))
 
         out_fh.close()
         
