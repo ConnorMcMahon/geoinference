@@ -48,7 +48,7 @@ class SparseDataset(object):
     This class encapsulates access to datasets.
     """
 
-    def __init__(self, dataset_dir, cross_fold_dir, users_file='users.json.gz', excluded_users=set(), default_location_source='geo-median'):
+    def __init__(self, dataset_dir, cross_fold_dir=None, users_file='users.json.gz', excluded_users=set(), default_location_source='geo-median'):
         settings_fname = os.path.join(dataset_dir,'dataset.json')
         if os.path.exists(settings_fname):
             self._settings = jsonlib.load(open(settings_fname,'r'))
@@ -58,7 +58,10 @@ class SparseDataset(object):
         # prepare for all data
         self._dataset_dir = dataset_dir
         self._users_fname = os.path.join(dataset_dir, users_file)
-        self._users_with_locations_fname = os.path.join(cross_fold_dir, default_location_source)
+        if cross_fold_dir != None:
+            self._users_with_locations_fname = os.path.join(cross_fold_dir, default_location_source)
+        else:
+            self._users_with_locations_fname = os.path.join(dataset_dir, 'users.home-locations.' + default_location_source + '.tsv.gz')
         self._mention_network_fname = os.path.join(dataset_dir, 'mention_network.elist')
         self._bi_mention_network_fname = os.path.join(dataset_dir, 'bi_mention_network.elist')
         self.excluded_users = excluded_users
