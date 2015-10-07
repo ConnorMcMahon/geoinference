@@ -69,7 +69,7 @@ def compute_user_median(dataPoints, numIter, csvwriter, current_uid):
     if len(dataPoints) < LIMIT_POINTS:  # Insufficient points for the user - don't record median
         if OUTPUT_ALL_USERS:
             csvwriter.writerow([current_uid, None, None])
-            return 0
+        return 0
     else:
         if SNAP_TO_USER_POINTS: # ensure median is one of the user's points
             lowestDev = float("inf")
@@ -111,7 +111,7 @@ def compute_user_median(dataPoints, numIter, csvwriter, current_uid):
         else:
             if OUTPUT_ALL_USERS:
                 csvwriter.writerow([current_uid, None, None])
-                return 0
+            return 0
 
 
 
