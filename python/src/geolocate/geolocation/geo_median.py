@@ -22,11 +22,11 @@ OUTPUT_DELIMITER = '\t'
 def main():
     compute_medians()
 
-
 def compute_medians(iterations=1000, already_computed=None):
 
     numIter = iterations  # numIter depends on how long it take to get a suitable convergence of objFunc
     count = 0
+    medians_found = 0
 
     already_computed_users = {}
     if already_computed:
@@ -52,22 +52,24 @@ def compute_medians(iterations=1000, already_computed=None):
                 else:
                     count += 1
                     if count % 2500 == 0:
-                        print("Processed {0} users.".format(count))
+                        print("Processed {0} users and {1} medians found.".format(count, medians_found))
 
                     if current_uid not in already_computed_users:
-                        compute_user_median(dataPoints, numIter, csvwriter, current_uid)
+                        medians_found += compute_user_median(dataPoints, numIter, csvwriter, current_uid)
 
                     # set user and restart array for new current user
                     current_uid = line[0]
                     dataPoints = [(float(line[1]), float(line[2]))]
             # compute final user's median
-            compute_user_median(dataPoints, numIter, csvwriter, current_uid)
+            medians_found += compute_user_median(dataPoints, numIter, csvwriter, current_uid)
+    print("Processed {0} users and {1} medians found.".format(count, medians_found))
 
 
 def compute_user_median(dataPoints, numIter, csvwriter, current_uid):
     if len(dataPoints) < LIMIT_POINTS:  # Insufficient points for the user - don't record median
         if OUTPUT_ALL_USERS:
             csvwriter.writerow([current_uid, None, None])
+            return 0
     else:
         if SNAP_TO_USER_POINTS: # ensure median is one of the user's points
             lowestDev = float("inf")
@@ -105,9 +107,11 @@ def compute_user_median(dataPoints, numIter, csvwriter, current_uid):
         # Check if user points are under the limit median absolute deviation
         if checkMedianAbsoluteDeviation(dataPoints, testMedian) <= LIMIT_MAD:
             csvwriter.writerow([current_uid, round(testMedian[0],6), round(testMedian[1],6)])
+            return 1
         else:
             if OUTPUT_ALL_USERS:
                 csvwriter.writerow([current_uid, None, None])
+                return 0
 
 
 
