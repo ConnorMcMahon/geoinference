@@ -8,27 +8,22 @@ from geopy.distance import vincenty
 from geopy.distance import great_circle
 import csv
 import numpy
-from collections import OrderedDict
 import traceback
-import json
-from shapely.wkt import loads
-from shapely.geometry import shape
 
 LIMIT_MAD = 30  # acceptable km limit to median absolute deviation of points
-LIMIT_POINTS = 1  # acceptable minimum number of GPS points for a user
+LIMIT_POINTS = 3  # acceptable minimum number of GPS points for a user
 DISTANCE_THRESHOLD = 1  # distance (meters) between iterations that determines end of search
-DATA_POINTS_FILE = '../sample_dataset/post_location_info.tsv'
+DATA_POINTS_FILE = '../sample_dataset/post_location_info.csv'
 OUTPUT_MEDIANS = '../sample_dataset/users.home-locations.geo-median.tsv'
 SNAP_TO_USER_POINTS = True
 OUTPUT_ALL_USERS = False
 OUTPUT_DELIMITER = '\t'
 
 def main():
-    #compute_user_median([(40.641975,-73.791994),(25.079263,121.23692),(40.727037,-73.98385),(40.642,-73.792),(40.642,-73.792),(25.077265,121.234934),(25.077464,121.235185)],10000, None, None)
     compute_medians()
 
 
-def compute_medians(suffix='', iterations=1000, already_computed=None):
+def compute_medians(iterations=1000, already_computed=None):
 
     numIter = iterations  # numIter depends on how long it take to get a suitable convergence of objFunc
     count = 0
@@ -43,7 +38,7 @@ def compute_medians(suffix='', iterations=1000, already_computed=None):
                     already_computed_users[line[0]] = True
 
     with open(DATA_POINTS_FILE, 'r') as fin:
-        csvreader = csv.reader(fin, delimiter='\t')
+        csvreader = csv.reader(fin)
         assert next(csvreader) == ['uid','lat','lon']
         with open(OUTPUT_MEDIANS, 'w') as fout:
             csvwriter = csv.writer(fout, delimiter=OUTPUT_DELIMITER)
@@ -65,6 +60,7 @@ def compute_medians(suffix='', iterations=1000, already_computed=None):
                     # set user and restart array for new current user
                     current_uid = line[0]
                     dataPoints = [(float(line[1]), float(line[2]))]
+            # compute final user's median
             compute_user_median(dataPoints, numIter, csvwriter, current_uid)
 
 
