@@ -193,6 +193,8 @@ def posts2mention_network(posts_fname,extract_user_id,
             print("Invalid JSON")
             continue
 
+    zen.io.edgelist.write(G, os.path.join(working_dir, 'mention_network.elist'), use_weights=True)
+
     BiMentionG = zen.Graph()
 
     potentialBiMentions = {}

@@ -24,8 +24,19 @@ from dataset import Dataset, posts2dataset
 from sparse_dataset import SparseDataset
 from geopy.distance import vincenty
 from geopy.distance import great_circle
+from shuffle import random
 
 logger = logging.getLogger(__name__)
+
+NUM_MALE_FOLDS = 5
+NUM_FEMALE_FOLDS = 5
+NUM_UNKNOWN_FOLDS = 5
+
+NUM_URBAN_FOLDS = 5
+
+NUM_RANDOM_FOLDS = 5
+
+FOLD_SIZE = 28000
 
 def get_method_by_name(name):
     # get the geoinference class
@@ -49,11 +60,26 @@ def ls_methods(args):
     for x in gimethod_subclasses():
         print('\t' + x.__name__)
 
+def generate_folds(l, numfolds):
+    shuffle(l)
+    x = l[0:FOLD_SIZE]
+    size_per_fold = FOLD_SIZE / numfolds
+    currentIndex = 0
+    folds = []
+    for i in range(numfolds):
+        folds[i] = x[0:currentIndex] + x[currentIndex + size_per_fold : FOLD_SIZE]
+        currentIndex += size_per_fold
+    return folds
+
+def write_fold(fold, currentFold, idToLoc, output_user_ids_file_handles):
+    for user_id in fold:
+        loc = idToLoc[user_id]
+        output_user_ids_file_handles[currentFold].write("%s\t%s\t%s" % (user_id, loc[0], loc[1]))
+
 def create_folds(args): 
     parser = argparse.ArgumentParser(prog='geoinf create_folds', description='creates a set of data partitions for evaluating with cross-fold validation')
     parser.add_argument('-f', '--force', help='overwrite the output model directory if it already exists')
     parser.add_argument('dataset_dir', help='a directory containing a geoinference dataset')
-    parser.add_argument('num_folds', help='the number of folds into which the dataset should be divided')
     parser.add_argument('fold_dir', help='a (non-existent) directory that will contain the information on the cross-validation folds')
     parser.add_argument('test_case', help="What type of test wanted to run i.e. rural vs urban (county), gender (gender), or random (any other string)")
 
@@ -63,105 +89,129 @@ def create_folds(args):
     if not os.path.exists(args.fold_dir): #and not args.force:
         #raise Exception, 'output fold_dir cannot already exist'
                 os.mkdir(args.fold_dir)
+    ground_truth_file = "filtered_user_groundtruth_locfield.tsv"
+    ground_truth_locs = "users.home-locations.loc-field.tsv.gz"
 
     # Decide on the number of folds
-    num_folds = int(args.num_folds)
     if num_folds <= 1:
         #raise Exception, 'The number of folds must be at least two'
         print("the number of folds must be at least two")
 
+    if args.test_case == "gender":
+        num_folds = NUM_MALE_FOLDS + NUM_FEMALE_FOLDS + NUM_UNKNOWN_FOLDS
+    elif args.test_case == "county":
+        num_folds = NUM_URBAN_FOLDS * 6
+    else:
+        num_folds = NUM_RANDOM_FOLDS
 
+    idToGender = {}
+    idToUrbanLevel = {}
+    with open(os.path.join(args.dataset_dir, ground_truth_file), "r") as gt_file:
+        gt_file.next();
+        for line in gt_file:
+            try:
+                uid, gender, urbanLevel = line.split('\t')
+                idToGender[uid] = gender
+                if urbanLevel != "\r\n":
+                    idToUrbanLevel[uid] = int(urbanLevel)
+            except:
+                print line
 
+    idToLoc = {}
+    with gzip.open(os.path.join(args.dataset_dir, ground_truth_locs), "r") as gt_file:
+        gt_file.next()
+        for line in gt_file:
+            uid, lat, lon = line.split('\t')
+            idToLoc[uid] = (lat, lon)
 
     # Initialize the output streams.  Rather than keeping things in memory,
     # we batch the gold standard posts by users (one at a time) and then
     # stream the user's gold standard posts (if any) to the output streams
-    output_held_out_post_ids_file_handles = []
-    output_held_out_user_ids_file_handles = []
-    output_gold_loc_file_handles = []
-    output_posts_file_handles = []
+    output_user_ids_file_handles = []
     cf_info_fh = open(os.path.join(args.fold_dir, "folds.info.tsv"), 'w')
 
     for i in range(0, num_folds):
         fold_name = "fold_%d" % i
-        # All the IDs of the gold posts in this fold are written here
-        fold_posts_ids_fh = open(os.path.join(args.fold_dir, fold_name + ".post-ids.txt"), 'w')
-        output_held_out_post_ids_file_handles.append(fold_posts_ids_fh)
 
         # All the IDs of the users with gold posts are written here
         fold_users_ids_fh = open(os.path.join(args.fold_dir, fold_name + ".user-ids.txt"), 'w')
-        output_held_out_user_ids_file_handles.append(fold_users_ids_fh)
+        output_user_ids_file_handles.append(fold_users_ids_file_handles)
 
-        # All the lat/lon and IDs of the gold posts are written here
-        gold_loc_fh = open(os.path.join(args.fold_dir, fold_name + ".gold-locations.tsv"), 'w')
-        output_gold_loc_file_handles.append(gold_loc_fh)
-
-         # The users.json.gz file with the gold data (used for testing)
-        gold_loc_fh = gzip.open(os.path.join(args.fold_dir, fold_name + ".users.json.gz"), 'w')
-        output_posts_file_handles.append(gold_loc_fh)
-        cf_info_fh.write("%s\t%s.post-ids.txt\t%s.user-ids.txt\t%s.users.json.gz\t%s.gold-locations.tsv\n" 
-                                 % (fold_name, fold_name, fold_name, fold_name, fold_name))
+        cf_info_fh.write("%s\t%s.user-ids.txt" 
+                                 % (fold_name, fold_name))
     cf_info_fh.close()
 
     # Load the dataset
     ds = SparseDataset(args.dataset_dir)
 
     if args.test_case == "gender":
-        pass
-    elif args.test_case == "county":
-        pass
-    else:
-        logger.debug('Extracting gold-standard posts')
-        num_users = 0
-        num_posts = 0
-        num_gold_users = 0
-        num_gold_posts = 0
+        female_users = []
+        male_users = []
+        unknown_users = []
 
+        for user in ds.user_iter():                             
+            user_id = user['user_id']
+            usergender = idToGender.get(str(user_id), -1)
+            # If this user had any gold locations, add them as folds
+            if usergender != -1:
+                #determine fold to use
+                if userGender == "m":
+                    male_users.append(user_id)
+                elif userGender == "f":
+                    female_users.append(user_id)
+                else:
+                    unknown_users.append(user_id)
+        currentFold = 0
+
+        male_folds = generate_folds(male_users, NUM_MALE_FOLDS)
+        for fold in male_folds:
+            write_fold(fold, currentFold, idToLoc, output_user_ids_file_handles)
+            currentFold += 1
+        
+        female_folds = generate_folds(female_users, NUM_FEMALE_FOLDS)
+        for fold in female_folds:
+            write_fold(fold, currentFold, idToLoc, output_user_ids_file_handles)
+            currentFold += 1
+        
+        unknown_folds = generate_folds(unknown_users, NUM_UNKNOWN_FOLDS)
+        for fold in unknown_folds:
+            write_fold(fold, currentFold, idToLoc, output_user_ids_file_handles)
+            currentFold += 1
+    elif args.test_case == "county":
+        usersAtLevel = []
+        for i in range(1, 7):
+            usersAtLevel[i] = []
+        for user in ds.user_iter():
+            user_id = user['user_id']
+            urbanRuralLevel = idToUrbanLevel.get(str(user,id) -1)
+            # If this user had any gold locations, add them as folds
+            if urbanRuralLevel != -1:
+                usersAtLevel[urbanRuralLevel].append(user_id)
+        currentFoldIndex = 0
+        for i in range(1,7):        
+            currentFolds = generate_folds(usersAtLevel[i], NUM_URBAN_FOLDS)
+            for fold in currentFolds:
+                write_fold(fold, currentFoldIndex, idToLoc, output_users_ids_file_handles)
+                currentFoldIndex += 1
+    else:
         # Iterate over the dataset looking for posts with geo IDs that we can
         # use as a gold standard
         for user in ds.user_iter():
-            gold_posts = []
-            gold_post_id_to_loc = {}
+            gold_users = []
             user_id = user['user_id']
-            num_posts += len(user['posts'])
-            for post in user['posts']:
-                if "geo" in post:
-                        post_id = post['id']
-                        loc = post['geo']['coordinates']
-                        gold_post_id_to_loc[post_id] = loc
-                        gold_posts.append(post)
+            gender = idToGender.get(str(user_id), -1)
             # If this user had any gold locations, add them as folds
-            if len(gold_posts) > 0:
-                num_gold_posts += len(gold_posts)
-                fold_to_use = num_gold_users % num_folds
-                num_gold_users += 1
+            if gender != -1:
+                gold_users.append(uid)
                 
-                output_held_out_user_ids_file_handles[fold_to_use].write("%s\n" % user['user_id'])
-
-                for post_id, loc in gold_post_id_to_loc.iteritems():
-                    output_held_out_post_ids_file_handles[fold_to_use].write("%d\n" % post_id)
-                    output_gold_loc_file_handles[fold_to_use].write("%d\t%s\t%f\t%f\n" % (post_id, user_id, loc[0], loc[1]))
-                # Lazily mutate the existing user object and the dump
-                # that object to the fold's user.json.gz 
-                user['posts'] = gold_posts
-                output_posts_file_handles[fold_to_use].write("%s\n" % simplejson.dumps(user))
-                    
-            num_users += 1
-            if num_users % 100000 == 0:
-                logger.debug('Processed %d users, saw %d gold so far (%d posts of %d (%f))' 
-                                         % (num_users, num_gold_users, num_gold_posts, num_posts,
-                                        float(num_gold_posts) / num_posts))
-
-    for fh in output_posts_file_handles:
+        currentFoldIndex = 0
+        currentFolds = generate_folds(gold_users, NUM_RANDOM_FOLDS)
+        for fold in currentFolds:
+            write_fold(fold, currentFoldIndex, idToLoc, output_users_ids_file_handles)
+            currentFoldIndex += 1
+            
+    for fh in output_user_ids_file_handles:
         fh.close()
-    for fh in output_held_out_post_ids_file_handles:
-        fh.close()
-    for fh in output_held_out_user_ids_file_handles:
-        fh.close()
-    for fh in output_gold_loc_file_handles:
-        fh.close()  
-
-    logger.debug('Saw %d gold standard users in %d total' % (num_gold_users, num_users))
 
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
@@ -191,13 +241,13 @@ def cross_validate(args):
     if not os.path.exists(args.results_dir): #and not args.force:
         #raise Exception, 'output fold_dir cannot already exist'
         os.mkdir(args.results_dir)
-
+    ground_truth_file = "sample_dataset/users.home-locations.loc-field.tsv.gz"
 
     # load the method
     method = get_method_by_name(args.method_name)
 
     gold_location = {}
-    with gzip.open("sample_dataset/users.home-locations.geo-median.tsv.gz", 'r') as fh:
+    with gzip.open(ground_truth_file, 'r') as fh:
         fh.next()
         for line in fh:
             user_id, lat, lon = line.split('\t')
@@ -228,7 +278,7 @@ def cross_validate(args):
     # the fold_dir containing the testing data for that fold
     for line in cfv_fh:
         line = line.strip()
-        fold_name, testing_post_ids_file, testing_user_ids_file, testing_users_file, location_source = line.split("\t")
+        fold_name, location_source = line.split("\t")
 
         # Skip this fold if the user has told us to run only one fold by name
         if specific_fold_to_run is not None and fold_name != specific_fold_to_run:
@@ -272,8 +322,6 @@ def cross_validate(args):
         # Train on the datset, holding out the testing post IDs
         started, finished = method_inst.train_model(settings, training_data, None)
 
-        
-
         #print('Finished training during fold %s; beginning testing' % fold_name)
 
         #print("Reading testing data from %s" % (os.path.join(args.fold_dir,testing_users_file)))
@@ -295,13 +343,16 @@ def cross_validate(args):
         out_fh.write("%s\t%s\t%s\t%s\t%s\t%s\n" % ("user_id", "known_lat", "known_lon", "pred_lat", "pred_lon", "distance (km)"))
         for user in test_users:
             #print('%s\t%s\t%s\t%s\t%s\n' % (user, gold_location[user][0], gold_location[user][1].strip(), finished[user][1], finished[user][0]))
-            prevMedian = (gold_location[user][1], gold_location[user][0])
+            prevMedian = (gold_location[user][0], gold_location[user][1])
             testMedian = finished[user]
             try:
                 distance = vincenty(prevMedian, testMedian).kilometers
             except:
                 distance = great_circle(prevMedian, testMedian).kilometers
-            out_fh.write('%s\t%s\t%s\t%s\t%s\t%d\n' % (user, gold_location[user][1], gold_location[user][0], finished[user][0], finished[user][1], distance))
+            out_fh.write('%s\t%s\t%s\t%s\t%s\t%d\n' % (user, gold_location[user][0], gold_location[user][1], finished[user][0], finished[user][1], distance))
+
+        for user in (predicted_users - gold_standard_users):
+            out_fh.write('%s\t%s\t%s\t%s\t%s\t%s\n' % (user, "none", "none", finished[user][0], finished[user][1], "none"))
 
         out_fh.close()
         

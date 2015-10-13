@@ -1,4 +1,4 @@
-##
+#
 #  Copyright (c) 2015, David Jurgens
 #
 #  All rights reserved. See LICENSE file for details
@@ -59,6 +59,7 @@ class SparseDataset(object):
         self._dataset_dir = dataset_dir
         self._users_fname = os.path.join(dataset_dir, users_file)
         if cross_fold_dir != None:
+            print(default_location_source)
             self._users_with_locations_fname = os.path.join(cross_fold_dir, default_location_source)
         else:
             self._users_with_locations_fname = os.path.join(dataset_dir, 'users.home-locations.' + default_location_source + '.tsv.gz')
@@ -104,7 +105,7 @@ class SparseDataset(object):
         been already identified.  
         """
         location_file = self._users_with_locations_fname
-        logger.debug('Loading home locations from %s' 
+        print('Loading home locations from %s' 
                      % (self._users_with_locations_fname))
         with open(location_file, 'r') as fh:
             logger.debug('Excluding locations for %d users' % (len(self.excluded_users)))
@@ -113,7 +114,7 @@ class SparseDataset(object):
 
             for line in fh:
                 try:
-                    post_id, user_id, lat, lon = line.split('\t')
+                    user_id, lat, lon = line.split('\t')
                     # print "%s %s" % (user_id, next(iter(self.excluded_users)))
                     if not user_id in self.excluded_users:
                         yield (user_id, (float(lat), float(lon)))
